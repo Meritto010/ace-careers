@@ -26,9 +26,10 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SettingRow = ({ icon, title, value, onPress, color = \"#64748B\", isLast = false }) => (
+// FIX: Cleaned up the escaped strings and stray backslash here
+const SettingRow = ({ icon, title, value, onPress, color = "#64748B", isLast = false }) => (
   <TouchableOpacity 
-    style={[styles.row, isLast && { borderBottomWidth: 0 }]} \
+    style={[styles.row, isLast && { borderBottomWidth: 0 }]} 
     onPress={onPress}
     activeOpacity={0.6}
   >
@@ -205,7 +206,7 @@ export default function SettingsScreen({ navigation }) {
           />
         </AccordionSection>
 
-        {/* SECTION 3: LEGAL & LEGACY CORNER */}
+        {/* SECTION 3: LEGAL & GUIDELINES */}
         <AccordionSection 
           title="Legal & Guidelines" 
           icon="shield-checkmark-outline" 
