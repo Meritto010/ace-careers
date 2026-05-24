@@ -117,14 +117,14 @@ export default function InterviewModule({ navigation }) {
 
       {/* INTERNAL SEGMENT TABS */}
       <View style={styles.tabContainer}>
-        {['Frameworks', 'Practice Drills'].map((tab) => (\
+        {['Frameworks', 'Practice Drills'].map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && styles.activeTab]}
             onPress={() => setActiveTab(tab)}
-          >\
+          >
             <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-          </TouchableOpacity>\
+          </TouchableOpacity>
         ))}
       </View>
 
