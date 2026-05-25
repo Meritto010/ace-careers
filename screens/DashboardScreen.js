@@ -8,7 +8,8 @@ import {
   StatusBar, 
   TouchableOpacity,
   Linking,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -67,7 +68,8 @@ export default function Dashboard({ isActivated, navigation, route }) {
       
       <StatusBar 
         barStyle="dark-content" 
-        backgroundColor="#FFF" 
+        backgroundColor="#FFF"
+        translucent={true}
       />
 
       {/* HEADER */}
@@ -88,7 +90,7 @@ export default function Dashboard({ isActivated, navigation, route }) {
           <View style={styles.statusBadge}>
             <View 
               style={[
-                styles.statusDot,
+                styles.stylesDot || styles.statusDot,
                 {
                   backgroundColor: resolvedActivationState
                     ? '#1E8E3E'
@@ -240,25 +242,19 @@ export default function Dashboard({ isActivated, navigation, route }) {
 
       </ScrollView>
 
-      {/* SUPPORT FLOATING PANEL */}
-      <View style={styles.absoluteSupportContainer}>
-
-        <Text style={styles.supportBrand}>
-          ACE CAREERS SUPPORT DESK
-        </Text>
-
-        <TouchableOpacity
-          style={styles.supportButton}
-          onPress={() =>
-            Linking.openURL('https://wa.me/919074887447')
-          }
-        >
-          <Text style={styles.supportLink}>
-            Need Assistance? Chat on WhatsApp
-          </Text>
-        </TouchableOpacity>
-
-      </View>
+      {/* COMPACT FLOATING BLUE SUPPORT ICON */}
+      <TouchableOpacity
+        style={styles.floatingSupportIcon}
+        activeOpacity={0.85}
+        onPress={() => Linking.openURL('https://wa.me/919074887447')}
+        accessibilityLabel="Support Desk"
+      >
+        <Ionicons
+          name="chatbubble-ellipses"
+          size={24}
+          color="#FFF"
+        />
+      </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -269,7 +265,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-    position: 'relative'
+    position: 'relative',
+    // Adds programmatic clearance specifically targeting hardware status-bars or device cutouts
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 4 : 0
   },
 
   scrollViewFrame: {
@@ -280,7 +278,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: BG_LIGHT,
     paddingTop: 6,
-    paddingBottom: 185
+    paddingBottom: 110
   },
 
   header: {
@@ -288,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F3F4'
@@ -434,46 +432,25 @@ const styles = StyleSheet.create({
     marginVertical: 4
   },
 
-  absoluteSupportContainer: {
+  floatingSupportIcon: {
     position: 'absolute',
-    bottom: 32,
-    left: 16,
-    right: 16,
-    backgroundColor: '#F0F4F8',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D2E3FC',
+    bottom: 36,
+    right: 20,
+    backgroundColor: GOOGLE_BLUE,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     zIndex: 999,
-    elevation: 5,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     shadowOffset: {
       width: 0,
-      height: -2
+      height: 3
     }
-  },
-
-  supportBrand: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#103D6A',
-    marginBottom: 4
-  },
-
-  supportButton: {
-    width: '100%',
-    alignItems: 'center'
-  },
-
-  supportLink: {
-    color: GOOGLE_BLUE,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-    fontSize: 12
   }
 
 });
