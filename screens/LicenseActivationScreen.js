@@ -1,445 +1,206 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
+import React, { useState, useEffect } from 'react';
+import { 
+  ScrollView, 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  StatusBar, 
   TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Linking,
+  Alert,
   Dimensions,
-  PixelRatio,
-  StatusBar,
-  ActivityIndicator,
+  Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { checkLicense } from '../services/supabase';
+import { Ionicons } from '@expo/vector-icons'; 
 
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const scale = SCREEN_WIDTH / 375;
+import LatestOpportunities from '../components/LatestOpportunities';
+import FeaturedJobs from '../components/FeaturedJobs';
 
-const ACE_BLUE = '#0F4C81';
-const SUCCESS_GREEN = '#10B981';
-const WARNING_ORANGE = '#F59E0B';
+const BRAND_DARK = '#103D6A';
+const BG_LIGHT = '#F8F9FA';
+const GOOGLE_BLUE = '#1A73E8';
 
-export function normalize(size) {
-  const newSize = size * scale;
-  const roundedSize = Math.round(PixelRatio.roundToNearestPixel(newSize));
-  return Platform.OS === 'ios' ? roundedSize : roundedSize - 2;
-}
+export default function Dashboard({ isActivated, navigation, route }) {
+  
+  // Responsive React state to listen for direct route shifts
+  const [resolvedActivationState, setResolvedActivationState] = useState(
+    route?.params?.isActivated ?? isActivated ?? false
+  );
 
-/* =========================================================
-   FEATURE CARD
-========================================================= */
-const FeatureCard = ({ icon, title, description, iconColor, bgColor }) => (
-  <TouchableOpacity
-    activeOpacity={0.85}
-    style={[styles.fCard, { backgroundColor: bgColor }]}
-    onPress={() => Alert.alert(title, description)}
-  >
-    <View style={[styles.iconCircle, { backgroundColor: `${iconColor}20` }]}>
-      <Ionicons name={icon} size={normalize(18)} color={iconColor} />
-    </View>
-    <Text style={styles.fText}>{title}</Text>
-  </TouchableOpacity>
-);
+  // Monitors arriving route parameter values actively
+  useEffect(() => {
+    if (route?.params?.isActivated !== undefined) {
+      setResolvedActivationState(route.params.isActivated);
+    } else {
+      const runStorageCheck = async () => {
+        const storedStatus = await AsyncStorage.getItem('@is_activated');
+        setResolvedActivationState(storedStatus === 'true');
+      };
+      runStorageCheck();
+    }
+  }, [route?.params?.isActivated]);
 
-/* =========================================================
-   MAIN SCREEN
-========================================================= */
-export default function LicenseActivationScreen({ navigation, onActivationSuccess }) {
-  const [name, setName] = useState('');
-  const [licenseKey, setLicenseKey] = useState('');
-  const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  /* =========================================================
-     LINKS
-  ========================================================= */
-  const PRIVACY_URL = 'https://gist.githubusercontent.com/Meritto010/106fe9eed279743481b47dd0dc548bfe/raw/024f52e035c0860b37473e5bc7e32606023a1ea6/privacy-policy.md';
-  const TERMS_URL = 'https://gist.githubusercontent.com/Meritto010/8f44e03d9d4d8c5eb0033d2e12f50900/raw/c71e80fab781e7336b62284beb13d8870bb99b2c/terms-of-service.md';
-
-  /* =========================================================
-     SUPPORT & UTILS
-  ========================================================= */
-  const handleSupport = () => {
-    const phone = '919074887447';
-    const url = `https://wa.me/${phone}?text=Hi ACE Careers Support, I have a license enquiry / need support with activation.`;
-
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Error', 'WhatsApp not installed.')
+  const triggerPaywallNotice = () => {
+    Alert.alert(
+      "Premium Feature Locked", 
+      "Unlock Career Masterclass tools, placement packs, and pro job dashboards immediately.",
+      [
+        { text: "Keep Exploring Free", style: "cancel" },
+        { 
+          text: "Activate License Key", 
+          onPress: () => navigation.navigate('Activation')
+        }
+      ]
     );
   };
 
-  const openLink = (url) => {
-    Linking.openURL(url).catch(() =>
-      Alert.alert('Error', 'Unable to open link.')
-    );
-  };
-
-  const handleFreeAccess = () => {
-    navigation.reset({
-      index: 0,
-      routes: [
-        {
-          name: 'MainApp',
-          params: { isActivated: false },
-        },
-      ],
-    });
-  };
-
-  /* =========================================================
-     ACTIVATION LOGIC
-  ========================================================= */
-  const handleActivation = async () => {
-    if (!name.trim() || !licenseKey.trim()) {
-      Alert.alert('Required', 'Please enter your details.');
+  const handleToolNavigation = (destinationModule) => {
+    if (!resolvedActivationState) {
+      triggerPaywallNotice();
       return;
     }
-
-    if (!agreed) {
-      Alert.alert('Terms Required', 'Please accept Privacy Policy and Terms.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formattedKey = licenseKey.trim().toUpperCase().replace(/\s/g, '');
-      const isValid = await checkLicense(formattedKey);
-
-      if (isValid) {
-        await AsyncStorage.setItem('@is_activated', 'true');
-        await AsyncStorage.setItem('@activated_license', formattedKey);
-        await AsyncStorage.setItem('@user_name', name.trim());
-
-        Alert.alert('Activation Successful', 'Premium features unlocked.', [
-          {
-            text: 'Continue',
-            onPress: () => {
-              if (onActivationSuccess) {
-                onActivationSuccess();
-              } else {
-                navigation.navigate('MainApp', { isActivated: true });
-              }
-            },
-          },
-        ]);
-      } else {
-        Alert.alert('Activation Failed', 'Invalid or disabled license key.');
-      }
-    } catch (e) {
-      console.log(e);
-      Alert.alert('Connection Error', 'Unable to connect to server.');
-    } finally {
-      setLoading(false);
-    }
+    navigation.navigate(destinationModule);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" translucent={false} />
+      
+      {/* HEADER SECTION AREA */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.welcomeText}>Welcome to</Text>
+          <Text style={styles.brandText}>ACE CAREERS</Text>
+        </View>
+        
+        <View style={styles.headerRightActions}>
+          <View style={styles.statusBadge}>
+            <View style={[styles.statusDot, { backgroundColor: resolvedActivationState ? '#1E8E3E' : '#70757A' }]} />
+            <Text style={styles.statusText}>{resolvedActivationState ? 'PRO' : 'FREE'}</Text>
+          </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          <TouchableOpacity 
+            style={styles.settingsIconButton}
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={22} color={BRAND_DARK} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* SCROLLABLE MAIN CONTENT FRAME */}
+      <ScrollView 
+        style={styles.scrollViewFrame}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* HEADER */}
-          <View style={styles.header}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="shield-checkmark" size={normalize(30)} color="#FFF" />
-            </View>
-            <Text style={styles.brandTitle}>ACE CAREERS</Text>
-            <Text style={styles.tagline}>Unlock Premium Career Features</Text>
-          </View>
+        <LatestOpportunities />
 
-          {/* FEATURES */}
-          <View style={styles.featContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: normalize(20) }}
-            >
-              <FeatureCard
-                icon="briefcase"
-                title="Featured Jobs"
-                description="Access premium job opportunities."
-                iconColor={WARNING_ORANGE}
-                bgColor="#FFF7ED"
-              />
-              <FeatureCard
-                icon="construct"
-                title="Career Tools"
-                description="Resume Builder, Mock Interviews and Career Support."
-                iconColor={SUCCESS_GREEN}
-                bgColor="#ECFDF5"
-              />
-            </ScrollView>
-          </View>
-
-          {/* FORM AREA */}
-          <View style={styles.form}>
-            <Text style={styles.label}>FULL NAME</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your full name"
-              placeholderTextColor="#94A3B8"
-              value={name}
-              editable={!loading}
-              onChangeText={setName}
-            />
-
-            <Text style={styles.label}>LICENSE KEY</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="ACE-XXXX-XXXX"
-              placeholderTextColor="#94A3B8"
-              value={licenseKey}
-              editable={!loading}
-              autoCapitalize="characters"
-              onChangeText={setLicenseKey}
-            />
-
-            {/* TERMS AND CONDITIONS */}
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity disabled={loading} onPress={() => setAgreed(!agreed)}>
-                <Ionicons
-                  name={agreed ? 'checkbox' : 'square-outline'}
-                  size={normalize(22)}
-                  color={agreed ? ACE_BLUE : '#CBD5E1'}
-                />
-              </TouchableOpacity>
-
-              <View style={styles.termsRow}>
-                <Text style={styles.checkboxText}>I agree to the</Text>
-                <TouchableOpacity onPress={() => openLink(PRIVACY_URL)}>
-                  <Text style={styles.linkText}> Privacy Policy</Text>
-                </TouchableOpacity>
-                <Text style={styles.checkboxText}> &</Text>
-                <TouchableOpacity onPress={() => openLink(TERMS_URL)}>
-                  <Text style={styles.linkText}> Terms</Text>
-                </TouchableOpacity>
+        <View style={styles.toolsContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.sectionLabel}>CAREER MASTERY TOOLS</Text>
+              <View style={styles.proTag}>
+                <Text style={styles.proTagText}>PRO</Text>
               </View>
             </View>
 
-            {/* ACTIVATE PREMIUM BUTTON */}
-            <TouchableOpacity
-              disabled={loading}
-              style={[styles.btnActivate, loading && { opacity: 0.7 }]}
-              onPress={handleActivation}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Ionicons name="flash" size={normalize(18)} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.btnText}>Activate Premium</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {/* EXPLORE FREE ACCESS */}
-            <TouchableOpacity disabled={loading} style={styles.btnSkip} onPress={handleFreeAccess}>
-              <Text style={styles.skipText}>Explore Free Access</Text>
-            </TouchableOpacity>
-
-            {/* INTEGRATED SUPPORT SECTION */}
-            <View style={styles.supportSection}>
-              <Text style={styles.supportHeading}>Get Support / License Enquiry</Text>
-              <TouchableOpacity
-                style={styles.supportRowPill}
-                onPress={handleSupport}
-                activeOpacity={0.85}
+            {!resolvedActivationState && (
+              <TouchableOpacity 
+                style={styles.headerUnlockBtn}
+                onPress={() => navigation.navigate('Activation')}
+                activeOpacity={0.7}
               >
-                <Ionicons name="logo-whatsapp" size={normalize(16)} color="#065F46" />
-                <Text style={styles.supportRowText}>Connect on WhatsApp (+91 9074887447)</Text>
+                <Ionicons name="lock-open-outline" size={11} color="#FFF" />
+                <Text style={styles.headerUnlockBtnText}> UNLOCK</Text>
               </TouchableOpacity>
-            </View>
-
+            )}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          
+          <View style={styles.toolsGrid}>
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('Resume')} 
+            >
+              <Ionicons name="document-text" size={22} color="#1A73E8" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>Resume</Text>
+              <Text style={styles.toolSubTitle}>Engineering</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('GD')} 
+            >
+              <Ionicons name="people" size={22} color="#0F9D58" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>GD</Text>
+              <Text style={styles.toolSubTitle}>Frameworks</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('Interview')} 
+            >
+              <Ionicons name="mic" size={22} color="#EA4335" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>Interview</Text>
+              <Text style={styles.toolSubTitle}>Mastery</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.miniDivider} />
+
+        <FeaturedJobs 
+          isActivated={resolvedActivationState} 
+          navigation={navigation} 
+        />
+      </ScrollView>
+
+      {/* BLUE FLOATING SUPPORT ICON (SAFE HEIGHT OUT OF BOTTOM BAR BOUNDS) */}
+      <TouchableOpacity 
+        style={styles.floatingSupportIcon} 
+        onPress={() => Linking.openURL('https://wa.me/919074887447')}
+        activeOpacity={0.85}
+        accessibilityLabel="Get Support"
+        accessibilityHint="Opens WhatsApp support assistant chat"
+      >
+        <Ionicons name="chatbubble-ellipses" size={24} color="#FFF" />
+      </TouchableOpacity>
+
     </SafeAreaView>
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: '#FFF', 
+    position: 'relative',
+    paddingTop: Platform.OS === 'android' ? 8 : 0 // Guarantees header content safely clears status bars and top device masks
   },
-  scrollContent: {
-    paddingBottom: normalize(40),
-  },
-  header: {
-    alignItems: 'center',
-    marginTop: Platform.OS === 'android' ? StatusBar.currentHeight + normalize(15) : normalize(20),
-  },
-  logoBadge: {
-    width: normalize(64),
-    height: normalize(64),
-    borderRadius: normalize(32),
-    backgroundColor: ACE_BLUE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    marginBottom: normalize(12),
-  },
-  brandTitle: {
-    fontSize: normalize(28),
-    fontWeight: '900',
-    color: ACE_BLUE,
-    letterSpacing: 1,
-  },
-  tagline: {
-    fontSize: normalize(14),
-    color: '#334155',
-    fontWeight: '700',
-    marginTop: normalize(4),
-  },
-  featContainer: {
-    marginTop: normalize(20),
-  },
-  fCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: normalize(16),
-    height: normalize(52),
-    borderRadius: normalize(14),
-    marginRight: normalize(12),
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  iconCircle: {
-    width: normalize(30),
-    height: normalize(30),
-    borderRadius: normalize(15),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: normalize(8),
-  },
-  fText: {
-    fontSize: normalize(13),
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  form: {
-    paddingHorizontal: normalize(24),
-    marginTop: normalize(24),
-  },
-  label: {
-    fontSize: normalize(11),
-    fontWeight: '800',
-    color: '#334155',
-    marginBottom: normalize(6),
-  },
-  input: {
-    height: normalize(52),
-    backgroundColor: '#F8FAFC',
-    borderRadius: normalize(12),
-    borderWidth: 1.5,
-    borderColor: '#DCE3EA',
-    paddingHorizontal: normalize(14),
-    fontSize: normalize(14),
-    color: '#0F172A',
-    marginBottom: normalize(14),
-    fontWeight: '600',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: normalize(20),
-  },
-  termsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginLeft: normalize(8),
-    flex: 1,
-    alignItems: 'center',
-  },
-  checkboxText: {
-    fontSize: normalize(12),
-    color: '#475569',
-    fontWeight: '600',
-  },
-  linkText: {
-    fontSize: normalize(12),
-    color: ACE_BLUE,
-    fontWeight: '800',
-    textDecorationLine: 'underline',
-  },
-  btnActivate: {
-    backgroundColor: ACE_BLUE,
-    height: normalize(54),
-    borderRadius: normalize(14),
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    elevation: 4,
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: normalize(15),
-    fontWeight: '900',
-  },
-  btnSkip: {
-    marginTop: normalize(12),
-    alignItems: 'center',
-    paddingVertical: normalize(4),
-  },
-  skipText: {
-    color: '#0F4C81',
-    fontSize: normalize(14),
-    fontWeight: '800',
-    textDecorationLine: 'underline',
-  },
-  supportSection: {
-    marginTop: normalize(20),
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: normalize(16),
-  },
-  supportHeading: {
-    fontSize: normalize(11),
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: normalize(8),
-    letterSpacing: 0.5,
-  },
-  supportRowPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: normalize(16),
-    paddingVertical: normalize(10),
-    borderRadius: normalize(12),
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  supportRowText: {
-    marginLeft: normalize(8),
-    fontSize: normalize(12),
-    fontWeight: '800',
-    color: '#065F46',
-  },
+  scrollViewFrame: { flex: 1 },
+  scrollContent: { flexGrow: 1, backgroundColor: BG_LIGHT, paddingBottom: 140 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F3F4' },
+  welcomeText: { fontSize: 11, color: '#5F6368', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  brandText: { fontSize: 20, fontWeight: '900', color: BRAND_DARK, letterSpacing: -0.5 },
+  headerRightActions: { flexDirection: 'row', alignItems: 'center' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  statusText: { fontSize: 9, fontWeight: '800', color: '#5F6368' },
+  settingsIconButton: { marginLeft: 12, padding: 6, borderRadius: 20, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E8EAED' },
+  toolsContainer: { paddingHorizontal: 20, paddingVertical: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#5F6368', letterSpacing: 1, marginRight: 6 },
+  proTag: { backgroundColor: '#E8F0FE', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
+  proTagText: { color: GOOGLE_BLUE, fontSize: 9, fontWeight: '900' },
+  headerUnlockBtn: { backgroundColor: '#D93025', flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, alignItems: 'center' },
+  headerUnlockBtnText: { color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  toolsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  toolCard: { width: '31%', backgroundColor: '#FFF', paddingVertical: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#F1F3F4', elevation: 1 },
+  toolTitle: { fontSize: 12, fontWeight: '800', color: BRAND_DARK },
+  toolSubTitle: { fontSize: 9, fontWeight: '600', color: GOOGLE_BLUE, marginTop: 1 },
+  miniDivider: { height: 6, backgroundColor: '#F1F3F4', marginVertical: 4 },
+  floatingSupportIcon: { position: 'absolute', bottom: 95, right: 20, backgroundColor: GOOGLE_BLUE, width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', zIndex: 999, elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 3 } }
 });
