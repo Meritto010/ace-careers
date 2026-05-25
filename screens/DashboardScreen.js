@@ -1,477 +1,207 @@
-import React, {
-  useState,
-  useEffect,
-} from 'react';
-
-import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  StatusBar,
+import React, { useState, useEffect } from 'react';
+import { 
+  ScrollView, 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  StatusBar, 
   TouchableOpacity,
   Linking,
   Alert,
+  Dimensions
 } from 'react-native';
-
-import { SafeAreaView } from 'react-native-safe-area-context';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons'; 
+import { useIsFocused } from '@react-navigation/native'; 
 
 import LatestOpportunities from '../components/LatestOpportunities';
 import FeaturedJobs from '../components/FeaturedJobs';
-
-/* =========================================================
-   COLORS
-========================================================= */
 
 const BRAND_DARK = '#103D6A';
 const BG_LIGHT = '#F8F9FA';
 const GOOGLE_BLUE = '#1A73E8';
 
-/* =========================================================
-   DASHBOARD
-========================================================= */
+export default function Dashboard({ isActivated, navigation, route }) {
+  const isFocused = useIsFocused();
+  
+  const [resolvedActivationState, setResolvedActivationState] = useState(
+    route?.params?.isActivated ?? isActivated ?? false
+  );
 
-export default function DashboardScreen({
-  isActivated,
-  navigation,
-  route,
-}) {
-
-  const [
-    resolvedActivationState,
-    setResolvedActivationState,
-  ] = useState(false);
-
-  /* =========================================================
-     CHECK ACTIVATION
-  ========================================================= */
-
+  // Checks storage and params automatically whenever screen becomes active
   useEffect(() => {
-
-    const initializeActivation =
-      async () => {
-
-        try {
-
-          /* =========================================
-             ROUTE PARAM PRIORITY
-          ========================================= */
-
-          if (
-            route.params &&
-            route.params.isActivated !==
-              undefined
-          ) {
-            setResolvedActivationState(
-              route.params.isActivated
-            );
-            return;
-          }
-
-          /* =========================================
-             FALLBACK TO STORAGE
-          ========================================= */
-
-          const storedState =
-            await AsyncStorage.getItem(
-              'isActivated'
-            );
-          setResolvedActivationState(
-            storedState === 'true'
-          );
-
-        } catch (error) {
-          console.error(
-            'Error reading activation status:',
-            error
-          );
-          setResolvedActivationState(
-            false
-          );
-        }
-      };
-
-    initializeActivation();
-
-  }, [route.params?.isActivated]);
-
-  /* =========================================================
-     HANDLERS
-  ========================================================= */
-
-  const handleSupportWhatsApp =
-    async () => {
-      const url =
-        'https://wa.me/919074887447?text=Hello%20ACE%20Support,%20I%20need%20help%20with%20the%20app.';
-      try {
-        const supported =
-          await Linking.canOpenURL(url);
-        if (supported) {
-          await Linking.openURL(url);
-        } else {
-          Alert.alert(
-            'Error',
-            'WhatsApp is not installed on this device.'
-          );
-        }
-      } catch (e) {
-        Alert.alert(
-          'Error',
-          'Could not open WhatsApp.'
-        );
+    const runStorageCheck = async () => {
+      if (route?.params?.isActivated !== undefined) {
+        setResolvedActivationState(route.params.isActivated);
+      } else {
+        const storedStatus = await AsyncStorage.getItem('@is_activated');
+        setResolvedActivationState(storedStatus === 'true');
       }
     };
 
-  /* =========================================================
-     RENDER
-  ========================================================= */
+    if (isFocused) {
+      runStorageCheck();
+    }
+  }, [isFocused, route?.params?.isActivated]);
+
+  const triggerPaywallNotice = () => {
+    Alert.alert(
+      "Premium Feature Locked", 
+      "Unlock Career Masterclass tools, placement packs, and pro job dashboards immediately.",
+      [
+        { text: "Keep Exploring Free", style: "cancel" },
+        { 
+          text: "Activate License Key", 
+          onPress: () => navigation.navigate('Activation')
+        }
+      ]
+    );
+  };
+
+  const handleToolNavigation = (destinationModule) => {
+    if (!resolvedActivationState) {
+      triggerPaywallNotice();
+      return;
+    }
+    navigation.navigate(destinationModule);
+  };
 
   return (
-    <SafeAreaView
-      style={styles.container}
-    >
-      <StatusBar
-        backgroundColor="#FFF"
-        barStyle="dark-content"
-      />
-
-      {/* HEADER SECTION */}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      
+      {/* HEADER SECTION AREA */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.appName}>
-            ACE
-          </Text>
-          <Text
-            style={styles.appSubName}
-          >
-            Careers
-          </Text>
+          <Text style={styles.welcomeText}>Welcome to</Text>
+          <Text style={styles.brandText}>ACE CAREERS</Text>
         </View>
-
-        {resolvedActivationState ? (
-          <View
-            style={
-              styles.headerActiveBadge
-            }
-          >
-            <Ionicons
-              name="checkmark-circle"
-              size={14}
-              color="#FFF"
-              style={{ marginRight: 4 }}
-            />
-            <Text
-              style={
-                styles.headerActiveText
-              }
-            >
-              PREMIUM
-            </Text>
+        
+        <View style={styles.headerRightActions}>
+          <View style={styles.statusBadge}>
+            <View style={[styles.statusDot, { backgroundColor: resolvedActivationState ? '#1E8E3E' : '#70757A' }]} />
+            <Text style={styles.statusText}>{resolvedActivationState ? 'PRO' : 'FREE'}</Text>
           </View>
-        ) : (
-          <TouchableOpacity
-            style={
-              styles.headerUnlockBtn
-            }
-            onPress={() =>
-              navigation.navigate(
-                'LicenseActivation'
-              )
-            }
+
+          <TouchableOpacity 
+            style={styles.settingsIconButton}
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name="lock-open-outline"
-              size={12}
-              color="#FFF"
-              style={{ marginRight: 4 }}
-            />
-            <Text
-              style={
-                styles.headerUnlockBtnText
-              }
-            >
-              UNLOCK
-            </Text>
+            <Ionicons name="settings-outline" size={22} color={BRAND_DARK} />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={
-          styles.scrollBody
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+      {/* SCROLLABLE MAIN CONTENT FRAME */}
+      <ScrollView 
+        style={styles.scrollViewFrame}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* QUICK TOOLS SECTION */}
-        <Text
-          style={styles.sectionTitle}
-        >
-          Quick Career Tools
-        </Text>
-        <View style={styles.toolsGrid}>
-          {/* TOOL 1: GRAMMAR */}
-          <TouchableOpacity
-            style={styles.toolCard}
-            onPress={() =>
-              navigation.navigate(
-                'Grammar'
-              )
-            }
-          >
-            <Ionicons
-              name="text-outline"
-              size={24}
-              color={GOOGLE_BLUE}
-            />
-            <Text
-              style={styles.toolTitle}
-            >
-              Grammar
-            </Text>
-            <Text
-              style={
-                styles.toolSubTitle
-              }
-            >
-              Learn Rules
-            </Text>
-          </TouchableOpacity>
+        <LatestOpportunities />
 
-          {/* TOOL 2: SPEAKING */}
-          <TouchableOpacity
-            style={styles.toolCard}
-            onPress={() =>
-              navigation.navigate(
-                'Speaking'
-              )
-            }
-          >
-            <Ionicons
-              name="mic-outline"
-              size={24}
-              color={GOOGLE_BLUE}
-            />
-            <Text
-              style={styles.toolTitle}
-            >
-              Speaking
-            </Text>
-            <Text
-              style={
-                styles.toolSubTitle
-              }
-            >
-              Practice AI
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.toolsContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.sectionLabel}>CAREER MASTERY TOOLS</Text>
+              <View style={styles.proTag}>
+                <Text style={styles.proTagText}>PRO</Text>
+              </View>
+            </View>
 
-          {/* TOOL 3: RESUME */}
-          <TouchableOpacity
-            style={styles.toolCard}
-            onPress={() =>
-              navigation.navigate(
-                'Resume'
-              )
-            }
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={24}
-              color={GOOGLE_BLUE}
-            />
-            <Text
-              style={styles.toolTitle}
+            {!resolvedActivationState && (
+              <TouchableOpacity 
+                style={styles.headerUnlockBtn}
+                onPress={() => navigation.navigate('Activation')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="lock-open-outline" size={11} color="#FFF" />
+                <Text style={styles.headerUnlockBtnText}> UNLOCK</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <View style={styles.toolsGrid}>
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('Resume')} 
             >
-              Resume
-            </Text>
-            <Text
-              style={
-                styles.toolSubTitle
-              }
+              <Ionicons name="document-text" size={22} color="#1A73E8" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>Resume</Text>
+              <Text style={styles.toolSubTitle}>Engineering</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('GD')} 
             >
-              Builder
-            </Text>
-          </TouchableOpacity>
+              <Ionicons name="people" size={22} color="#0F9D58" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>GD</Text>
+              <Text style={styles.toolSubTitle}>Frameworks</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              onPress={() => handleToolNavigation('Interview')} 
+            >
+              <Ionicons name="mic" size={22} color="#EA4335" style={{ marginBottom: 4 }} />
+              <Text style={styles.toolTitle}>Interview</Text>
+              <Text style={styles.toolSubTitle}>Mastery</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View
-          style={styles.miniDivider}
-        />
+        <View style={styles.miniDivider} />
 
-        {/* COMPONENT feeds */}
-        <LatestOpportunities
-          navigation={navigation}
-        />
-        <FeaturedJobs
-          navigation={navigation}
+        <FeaturedJobs 
+          isActivated={resolvedActivationState} 
+          navigation={navigation} 
         />
       </ScrollView>
 
-      {/* FLOATING CHAT SUPPORT */}
-      <TouchableOpacity
-        style={
-          styles.absoluteSupportContainer
-        }
-        onPress={handleSupportWhatsApp}
-      >
-        <Ionicons
-          name="chatbubble-ellipses"
-          size={18}
-          color="#FFF"
-        />
-        <Text style={styles.supportLink}>
-          Help Desk
-        </Text>
-      </TouchableOpacity>
+      {/* FLOATING ACTION OVERLAY PANEL */}
+      <View style={styles.absoluteSupportContainer}>
+        <Text style={styles.supportBrand}>  ACE CAREERS SUPPORT DESK</Text>
+        <TouchableOpacity 
+          style={styles.supportButton} 
+          onPress={() => Linking.openURL('https://wa.me/919074887447')}
+        >
+          <Text style={styles.supportLink}>Need Assistance? Chat on WhatsApp</Text>
+        </TouchableOpacity>
+      </View>
+
     </SafeAreaView>
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BG_LIGHT,
-  },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderColor: '#EFEFEF',
-  },
-
-  appName: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: BRAND_DARK,
-    letterSpacing: -0.5,
-  },
-
-  appSubName: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: GOOGLE_BLUE,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: -2,
-  },
-
-  scrollBody: {
-    padding: 16,
-    paddingBottom: 160,
-  },
-
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#94A3B8',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-    marginTop: 4,
-  },
-
-  headerActiveBadge: {
-    flexDirection: 'row',
-    backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-
-  headerActiveText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  headerUnlockBtn: {
-    flexDirection: 'row',
-    backgroundColor: BRAND_DARK,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-
-  headerUnlockBtnText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  toolsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-
-  toolCard: {
-    width: '31%',
-    backgroundColor: '#FFF',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F3F4',
-    elevation: 1,
-  },
-
-  toolTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: BRAND_DARK,
-  },
-
-  toolSubTitle: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: GOOGLE_BLUE,
-    marginTop: 1,
-  },
-
-  miniDivider: {
-    height: 6,
-    backgroundColor: '#F1F3F4',
-    marginVertical: 4,
-  },
-
-  absoluteSupportContainer: {
-    position: 'absolute',
-    bottom: 95,
-    left: 20,
-    backgroundColor: GOOGLE_BLUE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-
-  supportLink: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 6,
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFF', position: 'relative' },
+  scrollViewFrame: { flex: 1 },
+  scrollContent: { flexGrow: 1, backgroundColor: BG_LIGHT, paddingBottom: 160 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F3F4' },
+  welcomeText: { fontSize: 11, color: '#5F6368', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  brandText: { fontSize: 20, fontWeight: '900', color: BRAND_DARK, letterSpacing: -0.5 },
+  headerRightActions: { flexDirection: 'row', alignItems: 'center' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  statusText: { fontSize: 9, fontWeight: '800', color: '#5F6368' },
+  settingsIconButton: { marginLeft: 12, padding: 6, borderRadius: 20, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E8EAED' },
+  toolsContainer: { paddingHorizontal: 20, paddingVertical: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#5F6368', letterSpacing: 1, marginRight: 6 },
+  proTag: { backgroundColor: '#E8F0FE', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
+  proTagText: { color: GOOGLE_BLUE, fontSize: 9, fontWeight: '900' },
+  headerUnlockBtn: { backgroundColor: '#D93025', flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, alignItems: 'center' },
+  headerUnlockBtnText: { color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  toolsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  toolCard: { width: '31%', backgroundColor: '#FFF', paddingVertical: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#F1F3F4', elevation: 1 },
+  toolTitle: { fontSize: 12, fontWeight: '800', color: BRAND_DARK },
+  toolSubTitle: { fontSize: 9, fontWeight: '600', color: GOOGLE_BLUE, marginTop: 1 },
+  miniDivider: { height: 6, backgroundColor: '#F1F3F4', marginVertical: 4 },
+  absoluteSupportContainer: { position: 'absolute', bottom: 95, left: 20, right: 20, backgroundColor: '#F0F4F8', borderRadius: 12, borderWidth: 1, borderColor: '#D2E3FC', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, zIndex: 999, elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: -2 } },
+  supportBrand: { fontSize: 11, fontWeight: '800', color: '#103D6A', marginBottom: 4 },
+  supportButton: { width: '100%', alignItems: 'center' },
+  supportLink: { color: GOOGLE_BLUE, fontWeight: '700', textDecorationLine: 'underline', fontSize: 12 }
 });

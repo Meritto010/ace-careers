@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,8 +11,6 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -81,716 +80,994 @@ export default function ResumeBuilder({ navigation }) {
 
   const [additionalInput, setAdditionalInput] = useState('');
 
-  /* ---------------- STORAGE LOGIC ---------------- */
+  /* ---------------- LOAD ---------------- */
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+
     try {
-      const json = await AsyncStorage.getItem(STORAGE_KEY);
-      if (json) {
-        const parsed = JSON.parse(json);
-        // Deep merge fallbacks
-        setData({
-          personal: parsed.personal || { name: '', title: '', email: '', phone: '', location: '', linkedin: '' },
-          summary: parsed.summary || '',
-          experience: parsed.experience || [],
-          education: parsed.education || [],
-          skills: parsed.skills || [],
-          certifications: parsed.certifications || [],
-          additional: parsed.additional || [],
-        });
+
+      const saved =
+        await AsyncStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        setData(JSON.parse(saved));
       }
-    } catch (e) {
-      console.log('Error loading data', e);
-    }
-  };
 
-  const saveData = async (updatedData) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
-    } catch (e) {
-      console.log('Error saving data', e);
-    }
-  };
-
-  /* ---------------- HANDLERS ---------------- */
-
-  const updatePersonal = (field, val) => {
-    const updated = {
-      ...data,
-      personal: { ...data.personal, [field]: val }
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const updateSummary = (val) => {
-    const updated = { ...data, summary: val };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const addExperience = () => {
-    if (!experienceInput.role || !experienceInput.company) return;
-    const updated = {
-      ...data,
-      experience: [...data.experience, { ...experienceInput, id: Date.now().toString() }]
-    };
-    setData(updated);
-    saveData(updated);
-    setExperienceInput({ role: '', company: '', year: '', accomplishments: '' });
-  };
-
-  const deleteExperience = (id) => {
-    const updated = {
-      ...data,
-      experience: data.experience.filter(item => item.id !== id)
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const addEducation = () => {
-    if (!educationInput.degree || !educationInput.institution) return;
-    const updated = {
-      ...data,
-      education: [...data.education, { ...educationInput, id: Date.now().toString() }]
-    };
-    setData(updated);
-    saveData(updated);
-    setEducationInput({ degree: '', institution: '', year: '' });
-  };
-
-  const deleteEducation = (id) => {
-    const updated = {
-      ...data,
-      education: data.education.filter(item => item.id !== id)
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const addSkill = () => {
-    if (!skillInput.trim()) return;
-    const updated = {
-      ...data,
-      skills: [...data.skills, { text: skillInput.trim(), id: Date.now().toString() }]
-    };
-    setData(updated);
-    saveData(updated);
-    setSkillInput('');
-  };
-
-  const deleteSkill = (id) => {
-    const updated = {
-      ...data,
-      skills: data.skills.filter(item => item.id !== id)
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const addCert = () => {
-    if (!certInput.trim()) return;
-    const updated = {
-      ...data,
-      certifications: [...data.certifications, { text: certInput.trim(), id: Date.now().toString() }]
-    };
-    setData(updated);
-    saveData(updated);
-    setCertInput('');
-  };
-
-  const deleteCert = (id) => {
-    const updated = {
-      ...data,
-      certifications: data.certifications.filter(item => item.id !== id)
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  const addAdditional = () => {
-    if (!additionalInput.trim()) return;
-    const updated = {
-      ...data,
-      additional: [...data.additional, { text: additionalInput.trim(), id: Date.now().toString() }]
-    };
-    setData(updated);
-    saveData(updated);
-    setAdditionalInput('');
-  };
-
-  const deleteAdditional = (id) => {
-    const updated = {
-      ...data,
-      additional: data.additional.filter(item => item.id !== id)
-    };
-    setData(updated);
-    saveData(updated);
-  };
-
-  /* ---------------- EXPORT PLAIN TEXT LOGIC ---------------- */
-
-  const generatePlainText = () => {
-    let p = '';
-    const hr = '========================================\n';
-
-    // Personal
-    if (data.personal.name) p += `${data.personal.name.toUpperCase()}\n`;
-    if (data.personal.title) p += `${data.personal.title}\n`;
-    let contact = [];
-    if (data.personal.email) contact.push(data.personal.email);
-    if (data.personal.phone) contact.push(data.personal.phone);
-    if (data.personal.location) contact.push(data.personal.location);
-    if (contact.length > 0) p += `${contact.join('  |  ')}\n`;
-    if (data.personal.linkedin) p += `LinkedIn: ${data.personal.linkedin}\n`;
-    p += '\n';
-
-    // Summary
-    if (data.summary.trim()) {
-      p += `PROFESSIONAL SUMMARY\n${hr}${data.summary.trim()}\n\n`;
-    }
-
-    // Experience
-    if (data.experience.length > 0) {
-      p += `PROFESSIONAL EXPERIENCE\n${hr}`;
-      data.experience.forEach(exp => {
-        p += `${exp.role.toUpperCase()} - ${exp.company}`;
-        if (exp.year) p += `  (${exp.year})`;
-        p += '\n';
-        if (exp.accomplishments.trim()) p += `${exp.accomplishments.trim()}\n`;
-        p += '\n';
-      });
-    }
-
-    // Education
-    if (data.education.length > 0) {
-      p += `EDUCATION\n${hr}`;
-      data.education.forEach(edu => {
-        p += `${edu.degree} \n${edu.institution}`;
-        if (edu.year) p += ` (${edu.year})`;
-        p += '\n\n';
-      });
-    }
-
-    // Skills
-    if (data.skills.length > 0) {
-      p += `KEY SKILLS\n${hr}`;
-      p += data.skills.map(s => s.text).join('  •  ') + '\n\n';
-    }
-
-    // Certifications
-    if (data.certifications.length > 0) {
-      p += `CERTIFICATIONS\n${hr}`;
-      data.certifications.forEach(c => {
-        p += `• ${c.text}\n`;
-      });
-      p += '\n';
-    }
-
-    // Additional
-    if (data.additional.length > 0) {
-      p += `ADDITIONAL INFORMATION\n${hr}`;
-      data.additional.forEach(a => {
-        p += `• ${a.text}\n`;
-      });
-      p += '\n';
-    }
-
-    return p;
-  };
-
-  const handleShare = async () => {
-    const textOutput = generatePlainText();
-    if (!textOutput.trim()) {
-      alert('Please fill out some data before exporting.');
-      return;
-    }
-    try {
-      await Share.share({
-        message: textOutput,
-      });
     } catch (e) {
       console.log(e);
     }
   };
 
-  /* ---------------- ACCORDION TOGGLE ---------------- */
+  /* ---------------- DELAYED SAVE ---------------- */
 
-  const toggleSection = (sec) => {
-    setOpenSections({
-      ...openSections,
-      [sec]: !openSections[sec]
-    });
+  useEffect(() => {
+
+    const timer = setTimeout(() => {
+
+      AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(data)
+      );
+
+    }, 1000);
+
+    return () => clearTimeout(timer);
+
+  }, [data]);
+
+  /* ---------------- SHARE ---------------- */
+
+  const handleShare = async () => {
+
+    try {
+
+      await Share.share({
+        message: buildPreviewText(),
+      });
+
+    } catch (e) {
+      console.log(e);
+    }
   };
 
+  /* ---------------- PREVIEW ---------------- */
+
+  const buildPreviewText = () => {
+
+    const p = data.personal;
+
+    return `
+${p.name}
+
+${p.title}
+
+${p.email}
+${p.phone}
+${p.location}
+${p.linkedin}
+
+SUMMARY
+
+${data.summary}
+
+EXPERIENCE
+
+${data.experience.map(
+  e =>
+`${e.role} - ${e.company} (${e.year})
+
+${e.accomplishments}`
+).join('\n\n')}
+
+EDUCATION
+
+${data.education.map(
+  e =>
+`${e.degree} - ${e.institution} (${e.year})`
+).join('\n')}
+
+SKILLS
+
+${data.skills.join(', ')}
+
+CERTIFICATIONS
+
+${data.certifications.join(', ')}
+
+ADDITIONAL
+
+${data.additional.join('\n')}
+`.trim();
+  };
+
+  /* ---------------- TOGGLE SECTION ---------------- */
+
+  const toggleSection = key => {
+
+    setOpenSections(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  /* ---------------- MAIN ---------------- */
+
   return (
-    <SafeAreaView style={styles.container}>
+
+    <SafeAreaView style={styles.safe}>
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
       >
-        {/* HEADER SEGMENT */}
+
+        {/* HEADER */}
+
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Resume Builder</Text>
-          <TouchableOpacity style={styles.exportBtn} onPress={handleShare}>
-            <Text style={styles.exportText}>Share Resume</Text>
+
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+          >
+
+            <Text style={styles.back}>
+              ‹ Back
+            </Text>
+
           </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>
+            Resume Builder
+          </Text>
+
         </View>
 
-        {/* TABS CONTROLLER */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tabItem, tab === 'build' && styles.tabActive]}
+        {/* TABS */}
+
+        <View style={styles.tabs}>
+
+          <Tab
+            label="BUILD"
+            active={tab === 'build'}
             onPress={() => setTab('build')}
-          >
-            <Text style={[styles.tabText, tab === 'build' && styles.tabTextActive]}>Edit Details</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabItem, tab === 'preview' && styles.tabActive]}
+          />
+
+          <Tab
+            label="PREVIEW"
+            active={tab === 'preview'}
             onPress={() => setTab('preview')}
-          >
-            <Text style={[styles.tabText, tab === 'preview' && styles.tabTextActive]}>Live Preview</Text>
-          </TouchableOpacity>
+          />
+
+          <Tab
+            label="SHARE"
+            active={false}
+            onPress={handleShare}
+          />
+
         </View>
 
-        {tab === 'build' ? (
-          <ScrollView contentContainerStyle={styles.scrollBody} keyboardShouldPersistTaps="handled">
-            
-            {/* 1. PERSONAL DETAILS */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('personal')}>
-                <Text style={styles.sectionTitle}>1. Personal Information</Text>
-                <Text style={styles.sectionArrow}>{openSections.personal ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.personal && (
-                <View style={styles.accordionContent}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Full Name"
-                    value={data.personal.name}
-                    onChangeText={(v) => updatePersonal('name', v)}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Professional Title (e.g. Software Engineer Graduate)"
-                    value={data.personal.title}
-                    onChangeText={(v) => updatePersonal('title', v)}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email Address"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={data.personal.email}
-                    onChangeText={(v) => updatePersonal('email', v)}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Phone Number"
-                    keyboardType="phone-pad"
-                    value={data.personal.phone}
-                    onChangeText={(v) => updatePersonal('phone', v)}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Location (e.g. Mumbai, India)"
-                    value={data.personal.location}
-                    onChangeText={(v) => updatePersonal('location', v)}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="LinkedIn URL"
-                    autoCapitalize="none"
-                    value={data.personal.linkedin}
-                    onChangeText={(v) => updatePersonal('linkedin', v)}
-                  />
-                </View>
-              )}
-            </View>
+        {/* CONTENT */}
 
-            {/* 2. SUMMARY */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('summary')}>
-                <Text style={styles.sectionTitle}>2. Professional Summary</Text>
-                <Text style={styles.sectionArrow}>{openSections.summary ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.summary && (
-                <View style={styles.accordionContent}>
-                  <TextInput
-                    style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
-                    placeholder="Brief objective statements highlighting core competencies and career aspirations..."
-                    multiline={true}
-                    value={data.summary}
-                    onChangeText={updateSummary}
-                  />
-                </View>
-              )}
-            </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 120,
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          removeClippedSubviews={false}
+          showsVerticalScrollIndicator={false}
+        >
 
-            {/* 3. EXPERIENCE */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('experience')}>
-                <Text style={styles.sectionTitle}>3. Internships / Experience</Text>
-                <Text style={styles.sectionArrow}>{openSections.experience ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.experience && (
-                <View style={styles.accordionContent}>
-                  {data.experience.map((item) => (
-                    <View key={item.id} style={styles.card}>
-                      <Text style={styles.cardTitle}>{item.role} @ {item.company}</Text>
-                      {item.year ? <Text style={{ color: '#666', fontSize: 13 }}>{item.year}</Text> : null}
-                      {item.accomplishments ? <Text style={{ marginTop: 4, color: '#333' }}>{item.accomplishments}</Text> : null}
-                      <TouchableOpacity onPress={() => deleteExperience(item.id)}>
-                        <Text style={styles.delete}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+          {tab === 'build'
+            ? renderBuild()
+            : renderPreview()}
 
-                  <View style={{ borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 }}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Role (e.g. Web Developer Intern)"
-                      value={experienceInput.role}
-                      onChangeText={(v) => setExperienceInput({ ...experienceInput, role: v })}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Company/Organization Name"
-                      value={experienceInput.company}
-                      onChangeText={(v) => setExperienceInput({ ...experienceInput, company: v })}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Duration/Year (e.g. June 2023 - Aug 2023)"
-                      value={experienceInput.year}
-                      onChangeText={(v) => setExperienceInput({ ...experienceInput, year: v })}
-                    />
-                    <TextInput
-                      style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
-                      placeholder="Key accomplishments or tasks executed..."
-                      multiline={true}
-                      value={experienceInput.accomplishments}
-                      onChangeText={(v) => setExperienceInput({ ...experienceInput, accomplishments: v })}
-                    />
-                    <TouchableOpacity style={styles.addButton} onPress={addExperience}>
-                      <Text style={styles.addButtonText}>+ Add Experience Entry</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
+        </ScrollView>
 
-            {/* 4. EDUCATION */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('education')}>
-                <Text style={styles.sectionTitle}>4. Academic Qualifications</Text>
-                <Text style={styles.sectionArrow}>{openSections.education ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.education && (
-                <View style={styles.accordionContent}>
-                  {data.education.map((item) => (
-                    <View key={item.id} style={styles.card}>
-                      <Text style={styles.cardTitle}>{item.degree}</Text>
-                      <Text style={{ color: '#333' }}>{item.institution} ({item.year})</Text>
-                      <TouchableOpacity onPress={() => deleteEducation(item.id)}>
-                        <Text style={styles.delete}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  <View style={{ borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12 }}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Degree/Course (e.g. B.Tech Computer Science)"
-                      value={educationInput.degree}
-                      onChangeText={(v) => setEducationInput({ ...educationInput, degree: v })}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="University or Institutional Body"
-                      value={educationInput.institution}
-                      onChangeText={(v) => setEducationInput({ ...educationInput, institution: v })}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Passing Year or Timeline"
-                      value={educationInput.year}
-                      onChangeText={(v) => setEducationInput({ ...educationInput, year: v })}
-                    />
-                    <TouchableOpacity style={styles.addButton} onPress={addEducation}>
-                      <Text style={styles.addButtonText}>+ Add Education Entry</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* 5. SKILLS */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('skills')}>
-                <Text style={styles.sectionTitle}>5. Technical & Soft Skills</Text>
-                <Text style={styles.sectionArrow}>{openSections.skills ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.skills && (
-                <View style={styles.accordionContent}>
-                  <View style={styles.skillWrap}>
-                    {data.skills.map((item) => (
-                      <View key={item.id} style={styles.skillChip}>
-                        <Text style={{ color: '#333', fontSize: 13 }}>{item.text}</Text>
-                        <TouchableOpacity onPress={() => deleteSkill(item.id)} style={{ marginLeft: 6 }}>
-                          <Text style={{ color: '#D93025', fontWeight: 'bold', fontSize: 12 }}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={{ flexDirection: 'row' }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                      placeholder="Skill name (e.g. React Native, Java)"
-                      value={skillInput}
-                      onChangeText={setSkillInput}
-                    />
-                    <TouchableOpacity style={[styles.addButton, { justifyContent: 'center' }]} onPress={addSkill}>
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* 6. CERTIFICATIONS */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('certifications')}>
-                <Text style={styles.sectionTitle}>6. Certifications</Text>
-                <Text style={styles.sectionArrow}>{openSections.certifications ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.certifications && (
-                <View style={styles.accordionContent}>
-                  {data.certifications.map((item) => (
-                    <View key={item.id} style={styles.card}>
-                      <Text style={{ color: '#333' }}>• {item.text}</Text>
-                      <TouchableOpacity onPress={() => deleteCert(item.id)}>
-                        <Text style={styles.delete}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                      placeholder="Certification details..."
-                      value={certInput}
-                      onChangeText={setCertInput}
-                    />
-                    <TouchableOpacity style={[styles.addButton, { justifyContent: 'center' }]} onPress={addCert}>
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* 7. ADDITIONAL SECTIONS */}
-            <View style={styles.accordion}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('additional')}>
-                <Text style={styles.sectionTitle}>7. Projects / Additional Data</Text>
-                <Text style={styles.sectionArrow}>{openSections.additional ? '▾' : '▸'}</Text>
-              </TouchableOpacity>
-              
-              {openSections.additional && (
-                <View style={styles.accordionContent}>
-                  {data.additional.map((item) => (
-                    <View key={item.id} style={styles.card}>
-                      <Text style={{ color: '#333' }}>• {item.text}</Text>
-                      <TouchableOpacity onPress={() => deleteAdditional(item.id)}>
-                        <Text style={styles.delete}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
-                      placeholder="Project link or general information..."
-                      value={additionalInput}
-                      onChangeText={setAdditionalInput}
-                    />
-                    <TouchableOpacity style={[styles.addButton, { justifyContent: 'center' }]} onPress={addAdditional}>
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-
-          </ScrollView>
-        ) : (
-          /* LIVE PREVIEW COMPONENT CANVAS */
-          <ScrollView contentContainerStyle={styles.previewCanvas}>
-            <View style={styles.a4Page}>
-              
-              {/* TOP PROFILE STAMP */}
-              <Text style={styles.pName}>{data.personal.name || 'YOUR FULL NAME'}</Text>
-              {data.personal.title ? <Text style={styles.pTitle}>{data.personal.title}</Text> : null}
-              
-              <View style={styles.pContactRow}>
-                {data.personal.email ? <Text style={styles.pContactText}>{data.personal.email}</Text> : null}
-                {data.personal.phone ? <Text style={styles.pContactText}> • {data.personal.phone}</Text> : null}
-                {data.personal.location ? <Text style={styles.pContactText}> • {data.personal.location}</Text> : null}
-              </View>
-              {data.personal.linkedin ? <Text style={[styles.pContactText, { textAlign: 'center', marginTop: 2, color: '#0077B5' }]}>{data.personal.linkedin}</Text> : null}
-
-              {/* LIVE SUMMARY PROFILE */}
-              {data.summary.trim() ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>PROFESSIONAL SUMMARY</Text>
-                  <Text style={styles.pText}>{data.summary}</Text>
-                </View>
-              ) : null}
-
-              {/* LIVE EXPERIENCE MAP */}
-              {data.experience.length > 0 ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>PROFESSIONAL EXPERIENCE</Text>
-                  {data.experience.map(exp => (
-                    <View key={exp.id} style={{ marginBottom: 8 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ fontWeight: '700', color: '#333', fontSize: 13 }}>{exp.role} - {exp.company}</Text>
-                        <Text style={{ color: '#666', fontSize: 12 }}>{exp.year}</Text>
-                      </View>
-                      {exp.accomplishments ? <Text style={[styles.pText, { marginTop: 2 }]}>{exp.accomplishments}</Text> : null}
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
-              {/* LIVE EDUCATION BLOCKS */}
-              {data.education.length > 0 ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>EDUCATION</Text>
-                  {data.education.map(edu => (
-                    <View key={edu.id} style={{ marginBottom: 6, flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <View style={{ flex: 1, paddingRight: 10 }}>
-                        <Text style={{ fontWeight: '700', color: '#333', fontSize: 13 }}>{edu.degree}</Text>
-                        <Text style={{ color: '#555', fontSize: 12 }}>{edu.institution}</Text>
-                      </View>
-                      <Text style={{ color: '#666', fontSize: 12 }}>{edu.year}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
-              {/* LIVE CORE SKILLS */}
-              {data.skills.length > 0 ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>KEY SKILLS</Text>
-                  <Text style={[styles.pText, { fontWeight: '500' }]}>
-                    {data.skills.map(s => s.text).join('  •  ')}
-                  </Text>
-                </View>
-              ) : null}
-
-              {/* LIVE CERTIFICATIONS FRAME */}
-              {data.certifications.length > 0 ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>CERTIFICATIONS</Text>
-                  {data.certifications.map(c => (
-                    <Text key={c.id} style={[styles.pText, { marginBottom: 2 }]}>• {c.text}</Text>
-                  ))}
-                </View>
-              ) : null}
-
-              {/* LIVE PROJECTS AND MISC DATA */}
-              {data.additional.length > 0 ? (
-                <View style={styles.pSection}>
-                  <Text style={styles.pSectionHeading}>ADDITIONAL INFORMATION</Text>
-                  {data.additional.map(a => (
-                    <Text key={a.id} style={[styles.pText, { marginBottom: 2 }]}>• {a.text}</Text>
-                  ))}
-                </View>
-              ) : null}
-
-            </View>
-          </ScrollView>
-        )}
       </KeyboardAvoidingView>
+
     </SafeAreaView>
   );
+
+  /* ---------------- BUILD ---------------- */
+
+  function renderBuild() {
+
+    return (
+
+      <>
+
+        {/* PERSONAL */}
+
+        <Section
+          title="Personal Information"
+          open={openSections.personal}
+          onPress={() => toggleSection('personal')}
+        >
+
+          <Input
+            placeholder="Full Name"
+            value={data.personal.name}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  name: v,
+                },
+              }))
+            }
+          />
+
+          <Input
+            placeholder="Professional Title"
+            value={data.personal.title}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  title: v,
+                },
+              }))
+            }
+          />
+
+          <Input
+            placeholder="Email"
+            value={data.personal.email}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  email: v,
+                },
+              }))
+            }
+          />
+
+          <Input
+            placeholder="Phone"
+            value={data.personal.phone}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  phone: v,
+                },
+              }))
+            }
+          />
+
+          <Input
+            placeholder="Location"
+            value={data.personal.location}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  location: v,
+                },
+              }))
+            }
+          />
+
+          <Input
+            placeholder="LinkedIn"
+            value={data.personal.linkedin}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                personal: {
+                  ...prev.personal,
+                  linkedin: v,
+                },
+              }))
+            }
+          />
+
+        </Section>
+
+        {/* SUMMARY */}
+
+        <Section
+          title="Professional Summary"
+          open={openSections.summary}
+          onPress={() => toggleSection('summary')}
+        >
+
+          <Input
+            multiline
+            placeholder="Professional Summary"
+            value={data.summary}
+            onChangeText={v =>
+              setData(prev => ({
+                ...prev,
+                summary: v,
+              }))
+            }
+          />
+
+        </Section>
+
+        {/* EXPERIENCE */}
+
+        <Section
+          title="Experience"
+          open={openSections.experience}
+          onPress={() => toggleSection('experience')}
+        >
+
+          {data.experience.map((item, idx) => (
+
+            <Card key={idx}>
+
+              <Text style={styles.cardTitle}>
+                {item.role}
+              </Text>
+
+              <Text>
+                {item.company}
+              </Text>
+
+              <Text>
+                {item.year}
+              </Text>
+
+              <Text>
+                {item.accomplishments}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setData(prev => ({
+                    ...prev,
+                    experience:
+                      prev.experience.filter(
+                        (_, i) => i !== idx
+                      ),
+                  }))
+                }
+              >
+
+                <Text style={styles.delete}>
+                  Delete
+                </Text>
+
+              </TouchableOpacity>
+
+            </Card>
+
+          ))}
+
+          <Input
+            placeholder="Role"
+            value={experienceInput.role}
+            onChangeText={v =>
+              setExperienceInput({
+                ...experienceInput,
+                role: v,
+              })
+            }
+          />
+
+          <Input
+            placeholder="Company"
+            value={experienceInput.company}
+            onChangeText={v =>
+              setExperienceInput({
+                ...experienceInput,
+                company: v,
+              })
+            }
+          />
+
+          <Input
+            placeholder="Year"
+            value={experienceInput.year}
+            onChangeText={v =>
+              setExperienceInput({
+                ...experienceInput,
+                year: v,
+              })
+            }
+          />
+
+          <Input
+            multiline
+            placeholder="Accomplishments"
+            value={
+              experienceInput.accomplishments
+            }
+            onChangeText={v =>
+              setExperienceInput({
+                ...experienceInput,
+                accomplishments: v,
+              })
+            }
+          />
+
+          <AddButton
+            title="Add Experience"
+            onPress={() => {
+
+              if (
+                !experienceInput.role.trim()
+              ) return;
+
+              setData(prev => ({
+                ...prev,
+                experience: [
+                  ...prev.experience,
+                  experienceInput,
+                ],
+              }));
+
+              setExperienceInput({
+                role: '',
+                company: '',
+                year: '',
+                accomplishments: '',
+              });
+            }}
+          />
+
+        </Section>
+
+        {/* EDUCATION */}
+
+        <Section
+          title="Education"
+          open={openSections.education}
+          onPress={() => toggleSection('education')}
+        >
+
+          {data.education.map((item, idx) => (
+
+            <Card key={idx}>
+
+              <Text style={styles.cardTitle}>
+                {item.degree}
+              </Text>
+
+              <Text>
+                {item.institution}
+              </Text>
+
+              <Text>
+                {item.year}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setData(prev => ({
+                    ...prev,
+                    education:
+                      prev.education.filter(
+                        (_, i) => i !== idx
+                      ),
+                  }))
+                }
+              >
+
+                <Text style={styles.delete}>
+                  Delete
+                </Text>
+
+              </TouchableOpacity>
+
+            </Card>
+
+          ))}
+
+          <Input
+            placeholder="Degree"
+            value={educationInput.degree}
+            onChangeText={v =>
+              setEducationInput({
+                ...educationInput,
+                degree: v,
+              })
+            }
+          />
+
+          <Input
+            placeholder="Institution"
+            value={educationInput.institution}
+            onChangeText={v =>
+              setEducationInput({
+                ...educationInput,
+                institution: v,
+              })
+            }
+          />
+
+          <Input
+            placeholder="Year"
+            value={educationInput.year}
+            onChangeText={v =>
+              setEducationInput({
+                ...educationInput,
+                year: v,
+              })
+            }
+          />
+
+          <AddButton
+            title="Add Education"
+            onPress={() => {
+
+              if (
+                !educationInput.degree.trim()
+              ) return;
+
+              setData(prev => ({
+                ...prev,
+                education: [
+                  ...prev.education,
+                  educationInput,
+                ],
+              }));
+
+              setEducationInput({
+                degree: '',
+                institution: '',
+                year: '',
+              });
+            }}
+          />
+
+        </Section>
+
+        {/* SKILLS */}
+
+        <Section
+          title="Skills"
+          open={openSections.skills}
+          onPress={() => toggleSection('skills')}
+        >
+
+          <View style={styles.skillWrap}>
+
+            {data.skills.map((skill, idx) => (
+
+              <View
+                key={idx}
+                style={styles.skillChip}
+              >
+
+                <Text>
+                  {skill}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setData(prev => ({
+                      ...prev,
+                      skills:
+                        prev.skills.filter(
+                          (_, i) => i !== idx
+                        ),
+                    }))
+                  }
+                >
+
+                  <Text style={styles.delete}>
+                    ×
+                  </Text>
+
+                </TouchableOpacity>
+
+              </View>
+
+            ))}
+
+          </View>
+
+          <Input
+            placeholder="Add Skill"
+            value={skillInput}
+            onChangeText={setSkillInput}
+            onSubmitEditing={() => {
+
+              if (!skillInput.trim()) return;
+
+              setData(prev => ({
+                ...prev,
+                skills: [
+                  ...prev.skills,
+                  skillInput.trim(),
+                ],
+              }));
+
+              setSkillInput('');
+            }}
+          />
+
+        </Section>
+
+        {/* CERTIFICATIONS */}
+
+        <Section
+          title="Certifications"
+          open={openSections.certifications}
+          onPress={() =>
+            toggleSection('certifications')
+          }
+        >
+
+          {data.certifications.map((item, idx) => (
+
+            <Card key={idx}>
+
+              <Text>
+                {item}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setData(prev => ({
+                    ...prev,
+                    certifications:
+                      prev.certifications.filter(
+                        (_, i) => i !== idx
+                      ),
+                  }))
+                }
+              >
+
+                <Text style={styles.delete}>
+                  Delete
+                </Text>
+
+              </TouchableOpacity>
+
+            </Card>
+
+          ))}
+
+          <Input
+            placeholder="Add Certification"
+            value={certInput}
+            onChangeText={setCertInput}
+            onSubmitEditing={() => {
+
+              if (!certInput.trim()) return;
+
+              setData(prev => ({
+                ...prev,
+                certifications: [
+                  ...prev.certifications,
+                  certInput.trim(),
+                ],
+              }));
+
+              setCertInput('');
+            }}
+          />
+
+        </Section>
+
+        {/* ADDITIONAL */}
+
+        <Section
+          title="Additional Qualifications"
+          open={openSections.additional}
+          onPress={() =>
+            toggleSection('additional')
+          }
+        >
+
+          {data.additional.map((item, idx) => (
+
+            <Card key={idx}>
+
+              <Text>
+                {item}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setData(prev => ({
+                    ...prev,
+                    additional:
+                      prev.additional.filter(
+                        (_, i) => i !== idx
+                      ),
+                  }))
+                }
+              >
+
+                <Text style={styles.delete}>
+                  Delete
+                </Text>
+
+              </TouchableOpacity>
+
+            </Card>
+
+          ))}
+
+          <Input
+            placeholder="Add Qualification"
+            value={additionalInput}
+            onChangeText={setAdditionalInput}
+            onSubmitEditing={() => {
+
+              if (
+                !additionalInput.trim()
+              ) return;
+
+              setData(prev => ({
+                ...prev,
+                additional: [
+                  ...prev.additional,
+                  additionalInput.trim(),
+                ],
+              }));
+
+              setAdditionalInput('');
+            }}
+          />
+
+        </Section>
+
+      </>
+    );
+  }
+
+  /* ---------------- PREVIEW ---------------- */
+
+  function renderPreview() {
+
+    return (
+
+      <View>
+
+        <Text style={styles.previewName}>
+          {data.personal.name}
+        </Text>
+
+        <Text style={styles.previewTitle}>
+          {data.personal.title}
+        </Text>
+
+        <Text style={styles.previewMeta}>
+          {data.personal.email}
+        </Text>
+
+        <Text style={styles.previewMeta}>
+          {data.personal.phone}
+        </Text>
+
+        <Text style={styles.previewMeta}>
+          {data.personal.location}
+        </Text>
+
+        <Text style={styles.previewMeta}>
+          {data.personal.linkedin}
+        </Text>
+
+        <Preview title="Summary" value={data.summary} />
+
+        <Preview
+          title="Experience"
+          value={data.experience.map(
+            e =>
+`${e.role} - ${e.company} (${e.year})
+
+${e.accomplishments}`
+          ).join('\n\n')}
+        />
+
+        <Preview
+          title="Education"
+          value={data.education.map(
+            e =>
+`${e.degree} - ${e.institution} (${e.year})`
+          ).join('\n')}
+        />
+
+        <Preview
+          title="Skills"
+          value={data.skills.join(', ')}
+        />
+
+        <Preview
+          title="Certifications"
+          value={data.certifications.join(', ')}
+        />
+
+        <Preview
+          title="Additional"
+          value={data.additional.join('\n')}
+        />
+
+      </View>
+    );
+  }
 }
 
-/* ---------------------------------------------------------
-   STYLES SHEET BOUNDARY
---------------------------------------------------------- */
+/* ---------------- COMPONENTS ---------------- */
+
+const Tab = ({ label, active, onPress }) => (
+
+  <TouchableOpacity
+    style={[
+      styles.tab,
+      active && styles.tabActive,
+    ]}
+    onPress={onPress}
+  >
+
+    <Text
+      style={[
+        styles.tabText,
+        active && styles.tabTextActive,
+      ]}
+    >
+
+      {label}
+
+    </Text>
+
+  </TouchableOpacity>
+
+);
+
+const Section = ({
+  title,
+  children,
+  open,
+  onPress,
+}) => (
+
+  <View style={styles.section}>
+
+    <TouchableOpacity
+      style={styles.sectionHeader}
+      onPress={onPress}
+    >
+
+      <Text style={styles.sectionTitle}>
+        {title}
+      </Text>
+
+      <Text style={styles.sectionArrow}>
+        {open ? '−' : '+'}
+      </Text>
+
+    </TouchableOpacity>
+
+    {open && (
+      <View style={{ marginTop: 12 }}>
+        {children}
+      </View>
+    )}
+
+  </View>
+
+);
+
+const Input = props => (
+
+  <TextInput
+    {...props}
+    style={[
+      styles.input,
+      props.multiline && {
+        minHeight: 100,
+        textAlignVertical: 'top',
+      },
+    ]}
+    placeholderTextColor="#999"
+  />
+
+);
+
+const AddButton = ({ title, onPress }) => (
+
+  <TouchableOpacity
+    style={styles.addButton}
+    onPress={onPress}
+  >
+
+    <Text style={styles.addButtonText}>
+      {title}
+    </Text>
+
+  </TouchableOpacity>
+
+);
+
+const Card = ({ children }) => (
+
+  <View style={styles.card}>
+    {children}
+  </View>
+
+);
+
+const Preview = ({ title, value }) =>
+
+  value ? (
+
+    <View style={styles.previewBlock}>
+
+      <Text style={styles.previewHeading}>
+        {title}
+      </Text>
+
+      <Text style={styles.previewValue}>
+        {value}
+      </Text>
+
+    </View>
+
+  ) : null;
+
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: {
+
+  safe: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
+    paddingTop:
+      Platform.OS === 'android'
+        ? 24
+        : 0,
   },
 
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#fff',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderColor: '#eee',
+  },
+
+  back: {
+    color: '#0077B5',
+    marginRight: 16,
+    fontSize: 16,
   },
 
   headerTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#333',
-  },
-
-  exportBtn: {
-    backgroundColor: '#0077B5',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-
-  exportText: {
-    color: '#fff',
     fontWeight: '700',
-    fontSize: 13,
   },
 
-  tabBar: {
+  tabs: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderColor: '#eee',
   },
 
-  tabItem: {
+  tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 14,
   },
 
   tabActive: {
-    borderBottomColor: '#0077B5',
+    borderBottomWidth: 2,
+    borderColor: '#0077B5',
   },
 
   tabText: {
-    fontWeight: '600',
     color: '#666',
   },
 
@@ -799,24 +1076,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  scrollBody: {
-    padding: 14,
-    paddingBottom: 40,
-  },
-
-  accordion: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 12,
+  section: {
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    overflow: 'hidden',
+    borderColor: '#eee',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    padding: 14,
   },
 
   sectionHeader: {
     flexDirection: 'row',
-    padding: 14,
-    backgroundColor: '#fafafa',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -882,83 +1152,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
     marginRight: 8,
     marginBottom: 8,
   },
 
-  accordionContent: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+  previewName: {
+    fontSize: 24,
+    fontWeight: '700',
   },
 
-  previewCanvas: {
-    padding: 12,
-    backgroundColor: '#525659',
-    minHeight: '100%',
-  },
-
-  a4Page: {
-    backgroundColor: '#fff',
-    padding: 20,
-    minHeight: 600,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-
-  pName: {
+  previewTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: '#111',
-    letterSpacing: 0.5,
-  },
-
-  pTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#444',
-    marginTop: 2,
-  },
-
-  pContactRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingBottom: 8,
-  },
-
-  pContactText: {
-    fontSize: 11,
     color: '#555',
+    marginBottom: 10,
   },
 
-  pSection: {
-    marginTop: 12,
+  previewMeta: {
+    marginBottom: 4,
+    color: '#444',
   },
 
-  pSectionHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0077B5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#0077B5',
-    paddingBottom: 2,
+  previewBlock: {
+    marginTop: 18,
+  },
+
+  previewHeading: {
+    fontWeight: '700',
     marginBottom: 6,
-    letterSpacing: 0.5,
+    fontSize: 16,
   },
 
-  pText: {
-    fontSize: 12,
+  previewValue: {
+    lineHeight: 22,
     color: '#333',
-    lineHeight: 16,
-    textAlign: 'justify',
   },
+
 });
