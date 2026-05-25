@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Alert, Linking, Platform, LayoutAnimation, UIManager, StatusBar, Dimensions, PixelRatio
+  Alert, SafeAreaView, Linking, Platform, LayoutAnimation, UIManager, StatusBar, Dimensions, PixelRatio
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -26,240 +25,195 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// FIX: Cleaned up the escaped strings and stray backslash here
 const SettingRow = ({ icon, title, value, onPress, color = "#64748B", isLast = false }) => (
   <TouchableOpacity 
     style={[styles.row, isLast && { borderBottomWidth: 0 }]} 
     onPress={onPress}
     activeOpacity={0.6}
+    // FIX: Android touch area minimum
+    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
   >
-    <View style={[styles.iconContainer, { backgroundColor: `${color}10` }]}>
-      <Ionicons name={icon} size={normalize(20)} color={color} />
+    <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+      <Ionicons name={icon} size={normalize(18)} color={color} />
     </View>
     <View style={styles.rowContent}>
       <Text style={styles.rowText}>{title}</Text>
-      {value ? <Text style={styles.rowValue}>{value}</Text> : <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />}
+      {value ? <Text style={styles.rowValue}>{value}</Text> : null}
     </View>
+    <Ionicons name="chevron-forward" size={normalize(16)} color="#B0B5BB" />
   </TouchableOpacity>
 );
 
-const AccordionSection = ({ title, icon, color, isOpen, onToggle, children }) => {
-  return (
-    <View style={styles.sectionContainer}>
-      <TouchableOpacity style={styles.sectionHeader} onPress={onToggle} activeOpacity={0.7}>
-        <View style={[styles.sectionIconContainer, { backgroundColor: `${color}15` }]}>
-          <Ionicons name={icon} size={normalize(18)} color={color} />
-        </View>
-        <Text style={styles.sectionLabel}>{title}</Text>
-        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#94A3B8" style={{ marginLeft: "auto" }} />
-      </TouchableOpacity>
-      {isOpen && <View style={styles.accordionContent}>{children}</View>}
-    </View>
-  );
-};
-
 export default function SettingsScreen({ navigation }) {
-  const [openSection, setOpenSection] = useState("account"); // account, legal, help
-  const [isActivated, setIsActivated] = useState(false);
-  const [licenseKey, setLicenseKey] = useState("");
-  const [licenseName, setLicenseName] = useState("");
+  const [licenseKey, setLicenseKey] = useState("Not Activated");
+  const [userName, setUserName] = useState("Learner");
+  const [expandedSection, setExpandedSection] = useState('license');
 
-  useEffect(() => {
-    const fetchLicenseDetails = async () => {
-      const storedState = await AsyncStorage.getItem('isActivated');
-      const storedKey = await AsyncStorage.getItem('activeLicenseKey');
-      const storedName = await AsyncStorage.getItem('licenseeName');
-      
-      setIsActivated(storedState === 'true');
-      setLicenseKey(storedKey || "");
-      setLicenseName(storedName || "");
-    };
+  useEffect(() => { loadUserData(); }, []);
 
-    const unsubscribe = navigation.addListener('focus', fetchLicenseDetails);
-    fetchLicenseDetails();
-    return unsubscribe;
-  }, [navigation]);
+  const loadUserData = async () => {
+    const key = await AsyncStorage.getItem('@activated_license');
+    const name = await AsyncStorage.getItem('@user_name');
+    if (key) setLicenseKey(key);
+    if (name) setUserName(name);
+  };
 
   const toggleSection = (section) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpenSection(openSection === section ? null : section);
+    setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const handleURL = async (url, title) => {
+  const handleWhatsApp = () => {
+    const phone = "919074887447";
+    const message = "Hi ACE Support, I need help with my Pro account.";
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    Linking.openURL(url).catch(() => Alert.alert("Error", "WhatsApp is not installed"));
+  };
+
+  const performLogout = async () => {
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert("Link Error", `Cannot process verification link for ${title}`);
-      }
-    } catch {
-      Alert.alert("Error", "Could not complete web routing redirect.");
-    }
+      await AsyncStorage.multiRemove(['@is_activated', '@activated_license', '@user_name']);
+      navigation.reset({ index: 0, routes: [{ name: 'Activation' }] });
+    } catch (e) { Alert.alert("Error", "Logout failed."); }
   };
 
-  const handleDeactivate = () => {
-    Alert.alert(
-      "Deactivate Device",
-      "Are you sure you want to log out and clear your active premium license from this terminal device?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear License",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.clear();
-            setIsActivated(false);
-            setLicenseKey("");
-            setLicenseName("");
-            Alert.alert("Cleared", "Terminal subscription removed successfully.");
-            navigation.reset({ index: 0, routes: [{ name: 'LicenseActivation' }] });
-          }
-        }
-      ]
+  const AccordionSection = ({ title, icon, sectionKey, iconColor, children }) => {
+    const isOpen = expandedSection === sectionKey;
+    return (
+      <View style={styles.sectionCard}>
+        <TouchableOpacity 
+          style={styles.sectionHeader} 
+          onPress={() => toggleSection(sectionKey)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.headerLeft}>
+            <View style={[styles.headerIconCircle, { backgroundColor: iconColor + '10' }]}>
+                <Ionicons name={icon} size={normalize(18)} color={iconColor} />
+            </View>
+            <Text style={styles.sectionLabel}>{title}</Text>
+          </View>
+          <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={normalize(16)} color="#B0B5BB" />
+        </TouchableOpacity>
+        {isOpen && <View style={styles.accordionContent}>{children}</View>}
+      </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#FFF" barStyle="dark-content" />
-      
-      <View style={styles.topHeader}>
-        <Text style={styles.topHeaderTitle}>App Settings</Text>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backCircle}
+          // FIX: Android back button touch area
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
+            <Ionicons name="arrow-back" size={normalize(24)} color={ACE_BLUE} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={{ width: normalize(40) }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
-        
-        {/* MEMBERSHIP BOX */}
-        <View style={styles.membershipCard}>
-          <View style={styles.cardInfo}>
-            <Text style={styles.memberStatusLabel}>LICENSE STATUS</Text>
-            <Text style={styles.memberStatusValue}>
-              {isActivated ? "Premium Lifetime Member" : "Limited Evaluation Version"}
-            </Text>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        // FIX: Android scroll bounce
+        bounces={Platform.OS === 'ios'}
+      >
+        <View style={styles.brandCard}>
+          <View style={styles.logoBox}>
+            <View style={styles.avatar}>
+                <Ionicons name="shield-checkmark" size={normalize(28)} color="#FFF" />
+            </View>
           </View>
-          {isActivated ? (
-            <View style={[styles.statusBadge, { backgroundColor: '#E6F4EA' }]}>
-              <Text style={[styles.statusBadgeText, { color: GOOGLE_GREEN }]}>ACTIVE</Text>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={[styles.statusBadge, { backgroundColor: '#E8F0FE' }]}
-              onPress={() => navigation.navigate('LicenseActivation')}
-            >
-              <Text style={[styles.statusBadgeText, { color: GOOGLE_BLUE }]}>UPGRADE</Text>
-            </TouchableOpacity>
-          )}
+          <View>
+            <Text style={styles.brandName}>ACE CAREERS</Text>
+            <Text style={styles.version}> v1.1.0</Text>
+          </View>
         </View>
 
-        {/* SECTION 1: ACCOUNT & LICENSE */}
-        <AccordionSection 
-          title="Account & Subscription" 
-          icon="key-outline" 
-          color={GOOGLE_BLUE}
-          isOpen={openSection === "account"}
-          onToggle={() => toggleSection("account")}
-        >
-          {isActivated ? (
-            <View style={styles.licenseInfo}>
-              <Text style={styles.licenseSubTitle}>REGISTERED HOLDER</Text>
-              <Text style={styles.licenseName}>{licenseName || "Premium User"}</Text>
-              
-              <Text style={styles.licenseSubTitle}>LICENSE TERMINAL IDENTIFIER</Text>
-              <Text style={styles.licenseKey}>{licenseKey}</Text>
-              
-              <TouchableOpacity style={styles.deactivateBtn} onPress={handleDeactivate}>
-                <Ionicons name="log-out-outline" size={16} color={GOOGLE_RED} style={{ marginRight: 6 }} />
-                <Text style={styles.deactivateBtnText}>Deactivate License Key</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.licenseInfo}>
-              <Text style={styles.lockedText}>You are using the basic standard version of ACE.</Text>
-              <TouchableOpacity style={styles.activateBtn} onPress={() => navigation.navigate('LicenseActivation')}>
-                <Text style={styles.activateBtnText}>Unlock Premium Access Now</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        <AccordionSection title="LICENSE DETAILS" icon="ribbon-outline" iconColor={GOOGLE_BLUE} sectionKey="license">
+             <View style={styles.licenseInfo}>
+                <Text style={styles.licenseSubTitle}>REGISTERED USER</Text>
+                <Text style={styles.licenseName}>{userName}</Text>
+                <View style={styles.divider} />
+                <Text style={styles.licenseSubTitle}>LICENSE KEY</Text>
+                <Text style={styles.licenseKey}>{licenseKey}</Text>
+             </View>
         </AccordionSection>
 
-        {/* SECTION 2: HELP & PLATFORM SUPPORT */}
-        <AccordionSection 
-          title="Support Desk" 
-          icon="help-circle-outline" 
-          color={GOOGLE_GREEN}
-          isOpen={openSection === "help"}
-          onToggle={() => toggleSection("help")}
-        >
-          <SettingRow 
-            icon="logo-whatsapp" 
-            title="Chat Support Helpdesk" 
-            color="#25D366"
-            onPress={() => handleURL("https://wa.me/919074887447", "WhatsApp Desk")} 
-          />
-          <SettingRow 
-            icon="mail-outline" 
-            title="Email Support" 
-            color={GOOGLE_BLUE}
-            isLast={true}
-            onPress={() => handleURL("mailto:ace.careerdesk@gmail.com", "Email Support")} 
-          />
+        <AccordionSection title="SUPPORT CHANNELS" icon="help-buoy-outline" iconColor={GOOGLE_GREEN} sectionKey="support">
+          <SettingRow icon="logo-whatsapp" title="WhatsApp Support" color={GOOGLE_GREEN} onPress={handleWhatsApp} isLast={true} />
         </AccordionSection>
 
-        {/* SECTION 3: LEGAL & GUIDELINES */}
-        <AccordionSection 
-          title="Legal & Guidelines" 
-          icon="shield-checkmark-outline" 
-          color="#64748B"
-          isOpen={openSection === "legal"}
-          onToggle={() => toggleSection("legal")}
-        >
-          <SettingRow 
-            icon="document-text-outline" 
-            title="Privacy Policy Statement" 
-            onPress={() => handleURL("https://gist.githubusercontent.com/Meritto010/106fe9eed279743481b47dd0dc548bfe/raw/privacy-policy.md", "Privacy Policy")} 
-          />
-          <SettingRow 
-            icon="reader-outline" 
-            title="Terms of Service Agreement" 
-            isLast={true}
-            onPress={() => handleURL("https://gist.githubusercontent.com/Meritto010/8f44e03d9d4d8c5eb0033d2e12f50900/raw/terms-of-service.md", "Terms")} 
-          />
+        <AccordionSection title="LEGAL & POLICIES" icon="shield-checkmark-outline" iconColor={GOOGLE_BLUE} sectionKey="legal">
+          <SettingRow icon="document-text-outline" title="Privacy Policy" color={GOOGLE_BLUE} onPress={() => navigation.navigate('Legal')} />
+          <SettingRow icon="document-lock-outline" title="Terms of Service" color={GOOGLE_BLUE} onPress={() => navigation.navigate('Legal')} isLast={true} />
         </AccordionSection>
 
-        <View style={styles.appFooterBlock}>
-          <Text style={styles.footerBrandText}>ACE Careers</Text>
-          <Text style={styles.footerVersionText}>Version 1.1.0 (Production Build)</Text>
+        <AccordionSection title="ACCOUNT MANAGEMENT" icon="settings-outline" iconColor={GOOGLE_RED} sectionKey="account">
+          <SettingRow icon="log-out-outline" title="Deactivate Device" color={GOOGLE_RED} onPress={performLogout} isLast={true} />
+        </AccordionSection>
+
+        <View style={styles.footerContainer}>
+            <Text style={styles.footerNote}>ACE v1.1.0</Text>
+            <Text style={styles.footerNote}>© 2026 ACE CAREERS• All Rights Reserved</Text>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  topHeader: { paddingHorizontal: normalize(16), paddingVertical: normalize(16), backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  topHeaderTitle: { fontSize: normalize(18), fontWeight: '800', color: '#1E293B' },
-  scrollBody: { padding: normalize(16), paddingBottom: normalize(40) },
-  
-  membershipCard: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-    backgroundColor: '#FFF', padding: normalize(16), borderRadius: normalize(16), 
-    marginBottom: normalize(20), borderWidth: 1, borderColor: '#E2E8F0' 
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F8FAFC',
+    // FIX: Android container padding
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
-  cardInfo: { flex: 1 },
-  memberStatusLabel: { fontSize: normalize(10), fontWeight: '800', color: '#94A3B8', letterSpacing: 0.5 },
-  memberStatusValue: { fontSize: normalize(15), fontWeight: '700', color: '#1E293B', marginTop: normalize(2) },
-  statusBadge: { paddingHorizontal: normalize(10), paddingVertical: normalize(6), borderRadius: normalize(8) },
-  statusBadgeText: { fontSize: normalize(11), fontWeight: '800' },
-
-  sectionContainer: { backgroundColor: '#FFF', borderRadius: normalize(16), marginBottom: normalize(12), borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', padding: normalize(14) },
-  sectionIconContainer: { width: normalize(32), height: normalize(32), borderRadius: normalize(8), justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    padding: normalize(16), 
+    backgroundColor: '#FFF', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F1F5F9' 
+  },
+  backCircle: { 
+    width: normalize(40), 
+    height: normalize(40), 
+    borderRadius: normalize(20),
+    backgroundColor: '#F1F5F9', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    // FIX: Android minimum touch area
+    minWidth: 48,
+    minHeight: 48,
+  },
+  headerTitle: { fontSize: normalize(18), fontWeight: '700', color: ACE_BLUE },
+  // FIX: Increased bottom padding for Android
+  scrollContent: { 
+    padding: normalize(20), 
+    paddingBottom: normalize(80) 
+  },
+  brandCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: normalize(20), borderRadius: normalize(24), marginBottom: normalize(20), borderWidth: 1, borderColor: '#E2E8F0' },
+  logoBox: { backgroundColor: ACE_BLUE, borderRadius: normalize(16), marginRight: normalize(15) },
+  avatar: { 
+    width: normalize(50), 
+    height: normalize(50), 
+    borderRadius: normalize(25),
+    backgroundColor: ACE_BLUE, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  brandName: { fontSize: normalize(20), fontWeight: '900', color: ACE_BLUE },
+  version: { fontSize: normalize(13), color: GOOGLE_BLUE, fontWeight: '700' },
+  sectionCard: { backgroundColor: '#FFF', borderRadius: normalize(20), marginBottom: normalize(15), overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: normalize(16) },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerIconCircle: { width: normalize(36), height: normalize(36), borderRadius: normalize(12), justifyContent: 'center', alignItems: 'center', marginRight: normalize(12) },
   sectionLabel: { fontSize: normalize(12), fontWeight: '800', color: '#475569', letterSpacing: 0.5 },
   accordionContent: { paddingHorizontal: normalize(16), paddingBottom: normalize(10), borderTopWidth: 1, borderTopColor: '#F8FAFC' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: normalize(14), borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
@@ -270,16 +224,8 @@ const styles = StyleSheet.create({
   licenseInfo: { paddingVertical: normalize(12) },
   licenseSubTitle: { fontSize: normalize(10), fontWeight: '800', color: '#94A3B8', marginBottom: normalize(6) },
   licenseName: { fontSize: normalize(18), fontWeight: '700', color: '#1E293B', marginBottom: normalize(16) },
-  licenseKey: { fontSize: normalize(14), fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: '#475569', backgroundColor: '#F8FAFC', padding: normalize(12), borderRadius: normalize(8), borderWidth: 1, borderColor: '#E2E8F0', marginBottom: normalize(16) },
-  
-  deactivateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: normalize(8) },
-  deactivateBtnText: { fontSize: normalize(13), fontWeight: '700', color: GOOGLE_RED },
-  
-  lockedText: { fontSize: normalize(13), color: '#64748B', marginBottom: normalize(14), lineHeight: normalize(18) },
-  activateBtn: { backgroundColor: ACE_BLUE, paddingVertical: normalize(12), borderRadius: normalize(10), alignItems: 'center' },
-  activateBtnText: { color: '#FFF', fontSize: normalize(14), fontWeight: '800' },
-  
-  appFooterBlock: { marginTop: normalize(30), alignItems: 'center' },
-  footerBrandText: { fontSize: normalize(13), fontWeight: '700', color: '#64748B' },
-  footerVersionText: { fontSize: normalize(11), color: '#94A3B8', marginTop: normalize(2) }
+  licenseKey: { fontSize: normalize(15), fontWeight: '700', color: GOOGLE_BLUE },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: normalize(14) },
+  footerContainer: { marginTop: normalize(10), alignItems: 'center' },
+  footerNote: { textAlign: 'center', color: '#64748B', fontSize: normalize(12), fontWeight: '600' }
 });

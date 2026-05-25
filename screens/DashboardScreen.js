@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons'; 
-import { useIsFocused } from '@react-navigation/native'; 
 
 import LatestOpportunities from '../components/LatestOpportunities';
 import FeaturedJobs from '../components/FeaturedJobs';
@@ -23,27 +22,24 @@ const BG_LIGHT = '#F8F9FA';
 const GOOGLE_BLUE = '#1A73E8';
 
 export default function Dashboard({ isActivated, navigation, route }) {
-  const isFocused = useIsFocused();
   
+  // Responsive React state to listen for direct route shifts
   const [resolvedActivationState, setResolvedActivationState] = useState(
     route?.params?.isActivated ?? isActivated ?? false
   );
 
-  // Checks storage and params automatically whenever screen becomes active
+  // Monitors arriving route parameter values actively
   useEffect(() => {
-    const runStorageCheck = async () => {
-      if (route?.params?.isActivated !== undefined) {
-        setResolvedActivationState(route.params.isActivated);
-      } else {
+    if (route?.params?.isActivated !== undefined) {
+      setResolvedActivationState(route.params.isActivated);
+    } else {
+      const runStorageCheck = async () => {
         const storedStatus = await AsyncStorage.getItem('@is_activated');
         setResolvedActivationState(storedStatus === 'true');
-      }
-    };
-
-    if (isFocused) {
+      };
       runStorageCheck();
     }
-  }, [isFocused, route?.params?.isActivated]);
+  }, [route?.params?.isActivated]);
 
   const triggerPaywallNotice = () => {
     Alert.alert(
@@ -161,16 +157,16 @@ export default function Dashboard({ isActivated, navigation, route }) {
         />
       </ScrollView>
 
-      {/* FLOATING ACTION OVERLAY PANEL */}
-      <View style={styles.absoluteSupportContainer}>
-        <Text style={styles.supportBrand}>  ACE CAREERS SUPPORT DESK</Text>
-        <TouchableOpacity 
-          style={styles.supportButton} 
-          onPress={() => Linking.openURL('https://wa.me/919074887447')}
-        >
-          <Text style={styles.supportLink}>Need Assistance? Chat on WhatsApp</Text>
-        </TouchableOpacity>
-      </View>
+      {/* BLUE FLOATING SUPPORT ICON WITH ACCESSIBILITY ALERTS */}
+      <TouchableOpacity 
+        style={styles.floatingSupportIcon} 
+        onPress={() => Linking.openURL('https://wa.me/919074887447')}
+        activeOpacity={0.85}
+        accessibilityLabel="Get Support"
+        accessibilityHint="Opens WhatsApp customer care assistance chat"
+      >
+        <Ionicons name="chatbubble-ellipses" size={24} color="#FFF" />
+      </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -179,8 +175,8 @@ export default function Dashboard({ isActivated, navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF', position: 'relative' },
   scrollViewFrame: { flex: 1 },
-  scrollContent: { flexGrow: 1, backgroundColor: BG_LIGHT, paddingBottom: 160 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F3F4' },
+  scrollContent: { flexGrow: 1, backgroundColor: BG_LIGHT, paddingBottom: 140 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F3F4' },
   welcomeText: { fontSize: 11, color: '#5F6368', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   brandText: { fontSize: 20, fontWeight: '900', color: BRAND_DARK, letterSpacing: -0.5 },
   headerRightActions: { flexDirection: 'row', alignItems: 'center' },
@@ -200,8 +196,5 @@ const styles = StyleSheet.create({
   toolTitle: { fontSize: 12, fontWeight: '800', color: BRAND_DARK },
   toolSubTitle: { fontSize: 9, fontWeight: '600', color: GOOGLE_BLUE, marginTop: 1 },
   miniDivider: { height: 6, backgroundColor: '#F1F3F4', marginVertical: 4 },
-  absoluteSupportContainer: { position: 'absolute', bottom: 95, left: 20, right: 20, backgroundColor: '#F0F4F8', borderRadius: 12, borderWidth: 1, borderColor: '#D2E3FC', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, zIndex: 999, elevation: 5, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: -2 } },
-  supportBrand: { fontSize: 11, fontWeight: '800', color: '#103D6A', marginBottom: 4 },
-  supportButton: { width: '100%', alignItems: 'center' },
-  supportLink: { color: GOOGLE_BLUE, fontWeight: '700', textDecorationLine: 'underline', fontSize: 12 }
+  floatingSupportIcon: { position: 'absolute', bottom: 90, right: 20, backgroundColor: GOOGLE_BLUE, width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', zIndex: 999, elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 3 } }
 });
