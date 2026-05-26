@@ -1,5 +1,3 @@
-import 'react-native-gesture-handler';
-
 import React, {
   useState,
   useEffect,
@@ -9,6 +7,7 @@ import React, {
 import {
   ActivityIndicator,
   View,
+  Text,
   StatusBar,
   StyleSheet,
 } from 'react-native';
@@ -41,13 +40,13 @@ import GDModule from './modules/GDModule';
 import InterviewModule from './modules/InterviewModule';
 
 /* =========================================================
-   STACK INTERACTION PROFILE
+   STACK
 ========================================================= */
 
 const Stack = createStackNavigator();
 
 /* =========================================================
-   APPLICATION ROOT ENTRY POINT
+   APP
 ========================================================= */
 
 export default function App() {
@@ -57,40 +56,66 @@ export default function App() {
   const [isActivated, setIsActivated] =
     useState(false);
 
-  const navigationRef = useRef(null);
+  const navigationRef = useRef();
 
   /* =========================================================
-     SECURE RUNTIME ASYNC STATE PARSING
+     CHECK ACTIVATION
   ========================================================= */
 
   useEffect(() => {
     checkActivationStatus();
   }, []);
 
-  const checkActivationStatus = async () => {
-    try {
-      const status =
-        await AsyncStorage.getItem(
-          '@is_activated'
+  const checkActivationStatus =
+    async () => {
+      try {
+        const status =
+          await AsyncStorage.getItem(
+            '@is_activated'
+          );
+
+        const activated =
+          status === 'true';
+
+        setIsActivated(activated);
+
+        setTimeout(() => {
+          setIsLoading(false);
+
+          /* =========================================
+             AUTO NAVIGATE AFTER SPLASH
+          ========================================= */
+
+          setTimeout(() => {
+            navigationRef.current?.reset({
+              index: 0,
+              routes: [
+                {
+                  name: activated
+                    ? 'MainApp'
+                    : 'Activation',
+
+                  params: {
+                    isActivated:
+                      activated,
+                  },
+                },
+              ],
+            });
+          }, 100);
+        }, 1000);
+      } catch (error) {
+        console.log(
+          'Activation load failed:',
+          error
         );
 
-      const activated =
-        status === 'true';
-
-      setIsActivated(activated);
-
-    } catch (error) {
-      console.log(
-        'Activation load failed:',
-        error
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setIsLoading(false);
+      }
+    };
 
   /* =========================================================
-     NATIVE TRANSITIONAL SPLASH HANDLER
+     SPLASH SCREEN
   ========================================================= */
 
   if (isLoading) {
@@ -101,16 +126,27 @@ export default function App() {
           backgroundColor="#0F4C81"
         />
 
+        <Text style={styles.splashTitle}>
+          ACE CAREERS
+        </Text>
+
+        <Text style={styles.splashTag}>
+          Career Growth Platform
+        </Text>
+
         <ActivityIndicator
           size="large"
           color="#FFFFFF"
+          style={{
+            marginTop: 25,
+          }}
         />
       </View>
     );
   }
 
   /* =========================================================
-     GLOBAL ROUTING AND ENGINE NAVIGATION
+     MAIN NAVIGATION
   ========================================================= */
 
   return (
@@ -121,19 +157,13 @@ export default function App() {
       />
 
       <Stack.Navigator
-        initialRouteName={
-          isActivated
-            ? 'MainApp'
-            : 'Activation'
-        }
         screenOptions={{
           headerShown: false,
           animationEnabled: true,
         }}
       >
-
         {/* =====================================================
-            ACTIVATION GATEWAY ROUTE
+            ACTIVATION
         ===================================================== */}
 
         <Stack.Screen name="Activation">
@@ -145,9 +175,14 @@ export default function App() {
 
                 navigationRef.current?.reset({
                   index: 0,
+
                   routes: [
                     {
                       name: 'MainApp',
+
+                      params: {
+                        isActivated: true,
+                      },
                     },
                   ],
                 });
@@ -157,22 +192,31 @@ export default function App() {
         </Stack.Screen>
 
         {/* =====================================================
-            CORE PLATFORM WORKSPACE
+            MAIN DASHBOARD
         ===================================================== */}
 
         <Stack.Screen
           name="MainApp"
         >
-          {(props) => (
-            <DashboardScreen
-              {...props}
-              isActivated={isActivated}
-            />
-          )}
+          {(props) => {
+            const dynamicActivationState =
+              props.route.params
+                ?.isActivated ??
+              isActivated;
+
+            return (
+              <DashboardScreen
+                {...props}
+                isActivated={
+                  dynamicActivationState
+                }
+              />
+            );
+          }}
         </Stack.Screen>
 
         {/* =====================================================
-            PREMIUM PLACEMENT GUIDANCE VEHICLES
+            MODULES
         ===================================================== */}
 
         <Stack.Screen
@@ -187,37 +231,63 @@ export default function App() {
 
         <Stack.Screen
           name="Interview"
-          component={InterviewModule}
+          component={
+            InterviewModule
+          }
         />
 
         {/* =====================================================
-            UTILITY SYSTEMS AND SUPPORT CHANNELS
+            SUPPORT
         ===================================================== */}
 
         <Stack.Screen
           name="Settings"
-          component={SettingsScreen}
+          component={
+            SettingsScreen
+          }
         />
 
         <Stack.Screen
           name="Legal"
           component={LegalScreen}
         />
-
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
 /* =========================================================
-   PERFORMANCE MEMORY RENDERING STYLES
+   STYLES
 ========================================================= */
 
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
+
     justifyContent: 'center',
+
     alignItems: 'center',
+
     backgroundColor: '#0F4C81',
+  },
+
+  splashTitle: {
+    color: '#FFFFFF',
+
+    fontSize: 34,
+
+    fontWeight: '900',
+
+    letterSpacing: 1,
+  },
+
+  splashTag: {
+    color: '#DCEAFE',
+
+    fontSize: 14,
+
+    fontWeight: '600',
+
+    marginTop: 10,
   },
 });
