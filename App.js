@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ActivityIndicator, View, Text, StatusBar, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -42,7 +42,6 @@ export default function App() {
       } catch (error) {
         console.error("Error reading persistence keys:", error);
       } finally {
-        // Uniform timeout to ensure smooth visual transition
         setTimeout(() => {
           setIsLoading(false);
         }, 1500);
@@ -52,12 +51,10 @@ export default function App() {
     initializeAppState();
   }, []);
 
-  // Temporary launch placeholder screen
   if (isLoading) {
     return (
       <View style={styles.splashContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" translucent={false} />
-        {/* Clean, high-performance loader matching the ultra-light theme */}
         <ActivityIndicator size="large" color="#103D6A" />
       </View>
     );
@@ -80,20 +77,28 @@ export default function App() {
             <LicenseActivationScreen 
               {...props} 
               isActivated={isActivated}
-              onActivationSuccess={() => setIsActivated(true)}
+              onActivationSuccess={() => {
+                // Safely update app-wide storage state smoothly
+                setIsActivated(true);
+              }}
             />
           )}
         </Stack.Screen>
 
         <Stack.Screen name="Dashboard">
           {(props) => {
+            // Checks route parameters first, then global app state fallback
             const resolvedActivationState = props.route?.params?.isActivated ?? isActivated;
             return (
               <DashboardScreen
                 {...props}
                 isActivated={resolvedActivationState}
+                onOpenPaywall={() => {
+                  // Standard path to handle restricted premium feature taps cleanly
+                  props.navigation.navigate('Activation');
+                }}
                 onSyncStateChange={(updatedToken) => {
-                  if(updatedToken !== undefined) setIsActivated(updatedToken);
+                  if (updatedToken !== undefined) setIsActivated(updatedToken);
                 }}
               />
             );
@@ -103,33 +108,15 @@ export default function App() {
         {/* =====================================================
             MODULES
         ===================================================== */}
-        <Stack.Screen
-          name="Resume"
-          component={ResumeModule}
-        />
-
-        <Stack.Screen
-          name="GD"
-          component={GDModule}
-        />
-
-        <Stack.Screen
-          name="Interview"
-          component={InterviewModule}
-        />
+        <Stack.Screen name="Resume" component={ResumeModule} />
+        <Stack.Screen name="GD" component={GDModule} />
+        <Stack.Screen name="Interview" component={InterviewModule} />
 
         {/* =====================================================
             SUPPORT
         ===================================================== */}
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-        />
-
-        <Stack.Screen
-          name="Legal"
-          component={LegalScreen}
-        />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Legal" component={LegalScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -143,6 +130,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA', // Clean Ultra-light gray to perfectly match your brand icon background
+    backgroundColor: '#F8F9FA',
   }
 });
